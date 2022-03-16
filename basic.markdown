@@ -94,6 +94,149 @@ let vDom = (
 ReactDOM.render(vDom, document.getElementById(`app`))
 ```
 
+## 组件
+
+### 函数式组件
+
+- 组件的函数名要大写
+- 传入 ```ReactDOM``` 中的组件标签要自闭合
+
+```jsx
+function MyComponent() {
+    let arr = [`a`, `b`, `c`]
+    console.log(this) //这里里面的this是undefined， 因为在React编译的时候用的是严格模式
+    return (
+        <ul>
+            {
+                arr.map((letter, index) => {
+                    return <li key={index}>{letter}</li>
+                })
+            }
+        </ul>
+    )
+}
+
+ReactDOM.render(<MyComponent/>, document.getElementById(`app`))
+```
+
+### 类式组件
+
+- 组件类要继承 ```React.Component```
+- 要有 ```render``` 函数并且有返回值
+- render 中的 this 是该类的实例对象(组件实例对象 / 组件对象)
+
+
+### 组件的三大核心属性 (只有类式组件才有)
+
+- state
+- ref
+- props(函数也可以有，因为函数可以传递参数)
+
+#### state
+
+- 自定义函数要用箭头函数，因为普通函数的this为undefined，拿不到创建的组件实例对象
+- 更改state的值要用 ```this.setState({key: value})```
+
+```jsx
+class Mycomponent extends React.Component {
+
+    state = {counter: 0}
+
+
+    render() {
+        return (
+            <div className="counter">
+                <h2>{this.state.counter}</h2>
+                {/*这里的C要大写*/}
+                <button onClick={this.increaseCounter}>btn</button>
+            </div>
+        )
+    }
+
+    //这里要用箭头函数，因为普通函数的this是undefined
+    increaseCounter = () => {
+        //改变state要通过setState改变
+        this.setState({counter: this.state.counter + 1})
+    }
+}
+
+ReactDOM.render(<Mycomponent/>, document.getElementById(`app`))
+```
+
+#### props
+
+- 通过向组件标签中添加属性来传递props数据
+- - 传递数据可以用解构
+- - 传递数据可以使用 ```{}``` 也可以用 ```“”```
+- 通过 ```this.props``` 来获取传递的数据
+- props 中的属性是只读的
+- 通过 ```组件.propType``` 来限制传递的数据 或 使用 ```static``` 写在组件类的内部
+- 通过 ```组件.defaultProps``` 来规定props的默认值 或 使用 ```static``` 写在组件类的内部
+
+```jsx
+class Mycomponent extends React.Component {
+    //通过 ```组件.propType``` 来限制传递的数据
+    //这个需要导入包才能用, 因为15.x已经弃用了
+    static propType = {
+        name: PropTypes.string.isRequired, //字符串 必须传递的参数
+        age: PropTypes.number,
+        speak: PropTypes.func //func 表示函数类型的
+    }
+
+//通过 ```组件.defaultProps``` 来规定props的默认值
+    static defaultProps = {
+        name: `none`,
+        age: 123
+    }
+
+
+    state = {counter: 0}
+
+
+    render() {
+        //这里就可以接收到传过来的数据
+        let {name, age, phoneNum, message} = this.props
+        return (
+            <div className="counter">
+                <ul>
+                    <li>{name}</li>
+                    <li>{age}</li>
+                    <li>{phoneNum}</li>
+                    <li>{message}</li>
+                </ul>
+            </div>
+        )
+    }
+}
+//这里是写在类外面的props数据限制
+// //通过 ```组件.propType``` 来限制传递的数据
+// //这个需要导入包才能用
+// Mycomponent.propType = {
+//     name: PropTypes.string.isRequired, //字符串 必须传递的参数
+//     age: PropTypes.number,
+//     speak: PropTypes.func //func 表示函数类型的
+// }
+//
+// //通过 ```组件.defaultProps``` 来规定props的默认值
+// Mycomponent.defaultProps = {
+//     name: `none`,
+//     age: 123
+// }
+
+const info = {name: `redLeaf`, age: 11}
+
+//这里可以用解构 传递数据可以用{} 也可以用“” 但是“”只能传递number类型的数据
+ReactDOM.render(<Mycomponent {...info} phoneNum={123} message="hello"/>, document.getElementById(`app`))
+```
+
+> 类式组件构造器的作用
+
+- 通过给 ```this.state``` 赋值来初始化内部的state
+- 为事件处理函数绑定实例
+
+所以类中的构造器完全可以省略
+
+
 
 
 
