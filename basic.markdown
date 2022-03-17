@@ -236,13 +236,318 @@ ReactDOM.render(<Mycomponent {...info} phoneNum={123} message="hello"/>, documen
 
 所以类中的构造器完全可以省略
 
+#### refs
 
+> 组件标签可以通过 ```ref``` 来标识自己
 
+- 通过ref获得的是 ```真实DOM``` 而不是 ```虚拟DOM```
+- refs 常常和事件绑定一起使用
 
+> 字符串形式的 ```ref``` (但是官方不推荐使用，有可能废弃 效率不高)
 
+```jsx
+class Demo extends React.Component{
+    render() {
+        return (
+            <div className="wrapper">
+                {/*字符串形式的ref*/}
+                <input type="text" ref="input"/>
+                <button onClick={this.showData}>button</button>
+            </div>
+        )
+    }
 
+    showData = () => {
+        const {input} = this.refs
+        console.log(input.value);
+    }
 
+}
 
+ReactDOM.render(<Demo/>, document.getElementById(`app`))
+```
+
+> 回调函数形式的ref
+
+- 内联绑定回调
+- 类绑定回调
+
+- 写在ref中的函数， ref自动调用，当前的dom节点作为参数传递给这个函数
+
+```jsx
+class Demo extends React.Component{
+    render() {
+        return (
+            <div className="wrapper">
+                {/*回调函数形式的ref*/}
+                <input type="text" ref={currentElement => this.input = currentElement}/>
+                {/*下面这一行代码和上面的代码等效*/}
+                {/*<input type="text" ref={(currentElement) => {this.input = currentElement}}/>*/}
+                <button onClick={this.showData}>button</button>
+            </div>
+        )
+    }
+
+    showData = () => {
+        const {input}  = this
+        console.log(input.value);
+    }
+
+}
+
+ReactDOM.render(<Demo/>, document.getElementById(`app`))
+```
+
+- 回调的ref调用次数的问题
+
+> 如果 ref 回调函数是以**内联函数**的方式定义的，在**更新**过程中它会被执行两次，第一次传入参数 null，然后第二次会传入参数 DOM 元素。这是因为在每次渲染时会创建一个新的函数实例，所以 React 清空旧的 ref 并且设置新的。通过将 ref 的回调函数定义成 **class 的绑定函数**的方式可以避免上述问题，但是大多数情况下它是无关紧要的(所以在开发中用的多的是内联的写法)。
+>> 上面 ```<input ref={currentElement => this.input = currentElement}>``` 就是内联函数
+>> `更新`：是指当页面**再次**调用render函数的时候
+>> render 第一次渲染的时候只传一次dom，不传null
+
+> 而类绑定回调页面刷新时，也不会再次调用(只第一次渲染的时候调用)
+
+```jsx
+class Demo extends React.Component {
+    state = {isBig: true}
+    render() {
+     return (
+      <div className="wrapper">
+          <input type="text" ref={currentElement =>{ this.input = currentElement;
+              console.log(currentElement);
+          } }/>
+          <h2>The number is {this.state.isBig ? `big` : `small`}</h2>
+          <button onClick={this.changeNumber}>button</button>
+      {/*    点击按钮的时候会输出一个 null 和一个dom对象*/}
+      </div>   
+     )   
+    }
+    changeNumber = () => {
+        this.setState({isBig: !this.state.isBig})
+    }
+}
+
+ReactDOM.render(<Demo/>, document.getElementById(`app`))
+```
+
+> 通过 ```createRef``` 创建 ```ref```
+
+- 通过 ```this.React.createRef()``` 创建一个用于存储ref的容器，但是他只能存储一个，后面放入的元素会把前面的元素的顶掉
+
+```jsx
+class Demo extends React.Component {
+    input = React.createRef()
+    //这里会成为一个对象 {current: dom节点} 所以取的时候需要 .current
+    render() {
+        return (
+            <div className="wrap">
+                <input type="text" ref={this.input}/>
+                <button onClick={this.showValue}>button</button>
+            </div>
+        )
+    }
+    showValue = () => {
+        // 通过 .current 取dom节点
+        console.log(this.input.current.value);
+    }
+}
+
+ReactDOM.render(<Demo/>, document.getElementById(`app`))
+```
+
+### 事件处理
+
+- 通过 ```onXxx``` 指定事件处理函数
+- - react使用的是自定义(合成)事件，而不是原生dom中的事件 (为了更换的兼容性)
+- - react中的事件是通过事件委托(通过事件冒泡)的方式处理的(委托给组件最外层的元素)
+- 通过 ```event.target``` 得到发生事件的dom元素对象
+
+> 当发生事件的元素和要操作的元素相同是，使用 ```event.taget``` 而不使用 ```ref```, 因为要避免过度使用ref
+
+```jsx
+class Demo extends React.Component {
+    render() {
+        return (
+            <div className="wrapper">
+                <input type="text" onBlur={this.showValue}/>
+            </div>
+        )
+    }
+    showValue = (event) => {
+        console.log(event.target.value);
+    }
+}
+
+ReactDOM.render(<Demo/>, document.getElementById(`app`))
+```
+
+### 受控组件 和 非受控组件
+
+#### 非受控组件
+
+- 有需要输入的元素的组件，现用现取用，就是非受控组件
+
+```jsx
+class LogIn extends React.Component{
+    state = {phoneNum: `123`, password: `456`}
+    phone
+    render() {
+        return (
+            <div className="wrapper">
+                <form onSubmit={this.handleSubmit}>
+                    <label>
+                        phoneNumber:
+                        <input type="text" ref={element => this.phoneNum = element}/>
+                    </label>
+                    <label>
+                        password:
+                        <input type="password" ref={element => this.password = element}/>
+                    </label><br/>
+                    <button>logIn</button>
+                </form>
+            </div>
+        )
+    }
+    handleSubmit = (event) => {
+        //阻止表单提交的默认事件
+        event.preventDefault()
+        if(this.phoneNum.value === this.state.phoneNum && this.password.value === this.state.password){
+            alert(`success`)
+        }else{
+            alert(`error`)
+        }
+    }
+}
+
+ReactDOM.render(<LogIn/>, document.getElementById(`app`))
+```
+
+#### 受控组件
+
+- 通过state维护组件(类似于Vue中的双向绑定)
+
+```jsx
+class LogIn extends React.Component {
+    state = {
+        dataBase: {
+            phoneNum: `123`,
+            password: `456`
+        },
+        phoneNum: ``,
+        password: ``
+    }
+
+    render() {
+        return (
+            <div className="wrap">
+                <form onSubmit={this.handleSubmit}>
+                    <label>
+                        phoneNum:
+                        <input type="text" onChange={this.getPhoneNum}/>
+                    </label><br/>
+                    <label>
+                        password:
+                        <input type="password" onChange={this.getPassword}/>
+                    </label><br/>
+                    <button>submit</button>
+                </form>
+            </div>
+        )
+    }
+
+    getPhoneNum = (event) => {
+     this.setState({phoneNum: event.target.value})
+    }
+
+    getPassword = (event) => {
+        this.setState({password: event.target.value})
+    }
+
+    handleSubmit = (event) => {
+        event.preventDefault()
+        if(this.state.phoneNum === this.state.dataBase.phoneNum && this.state.password === this.state.dataBase.password) {
+            alert(`success`)
+        }else{
+            alert(`error`)
+        }
+    }
+}
+
+ReactDOM.render(<LogIn/>, document.getElementById(`app`))
+```
+
+### 高阶函数_函数柯里化 (这个就不是React知识)
+
+- 高阶函数：函数的接收到的参数或返回值依然是一个函数
+- 函数柯里化：通过函数调用继续返回函数的方式，实现多次接收参数最后统一处理的函数编码形式
+
+> 函数柯里化的简单例子
+
+```js
+function sum(a) {
+    return (b) => {
+        return (c) => {
+            return a+b+c
+        }
+    }
+}
+
+sum(1)(2)(3) //1+2+3
+```
+
+> 利用柯里化优化上面的登录的代码
+
+如果有非常多的input(如注册页面,填一堆信息)， 那么上面的代码重复太多
+
+```jsx
+class LogIn extends React.Component {
+    state = {
+        dataBase: {
+            phoneNum: `123`,
+            password: `456`
+        },
+        phoneNum: ``,
+        password: ``
+    }
+
+    render() {
+        return (
+            <div className="wrap">
+                <form onSubmit={this.handleSubmit}>
+                    <label>
+                        phoneNum:
+                        <input type="text" onChange={this.saveFormData(`phoneNum`)}/>
+                    </label><br/>
+                    <label>
+                        password:
+                        <input type="password" onChange={this.saveFormData(`password`)}/>
+                    </label><br/>
+                    <button>submit</button>
+                </form>
+            </div>
+        )
+    }
+
+    saveFormData(dataType) {
+        return (event) => {
+            this.setState({[dataType]: event.target.value})
+        }
+    }
+
+    handleSubmit = (event) => {
+        event.preventDefault()
+        if(this.state.phoneNum === this.state.dataBase.phoneNum && this.state.password === this.state.dataBase.password) {
+            alert(`success`)
+        }else{
+            alert(`error`)
+        }
+    }
+}
+
+ReactDOM.render(<LogIn/>, document.getElementById(`app`))
+```
+
+### React 组件的生命周期
 
 
 
