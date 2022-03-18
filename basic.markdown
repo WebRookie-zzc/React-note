@@ -549,6 +549,235 @@ ReactDOM.render(<LogIn/>, document.getElementById(`app`))
 
 ### React 组件的生命周期
 
+> 旧版本的生命周期
+
+- 分为三部分
+> 初始化组件
+> 更新组件
+> 卸载组件
+
+![旧版本生命周期](./note-img/React生命周期(旧).png)
+
+- shouldComponentUpdate 用于判断是否往下运行， 如果他的返回值是 ```false``` 那么就不会往下走，就调用不到render， 页面就不会改变，如果返回的是 ```true```， 那么就会继续往下调用 componentWillUpdate, 进而调用render改变页面，如果我们不写这个钩子，react默认返回true, 他就相当于控制页面是否更新的**阀门**
+- 执行完 ```setState``` 就要进入 ```shouldComponentUpdate```
+
+- 通过 ```forceUpdate()``` 能在不修改 ```state``` 的情况下，对页面发生更新 (绕过了shouldComponentUpdate)
+- componentDidUpdate 可以接收三个参数(React自己传入), 第一个是**先前**传递的props， 第二个是 更新**之前**的 state，第三个是 ```getSnapshotBeforeUpdate``` 生命周期钩子的返回值
+
+```jsx
+class Demo1 extends React.Component {
+    constructor(props) {
+        super(props);
+        console.log(`Demo1-constructor`);
+
+        this.state = {isRed: true}
+    }
+
+    //挂载前调用
+    componentWillMount() {
+        console.log(`Demo1-componentWillMount`);
+    }
+
+    //首次渲染或者更新时调用
+    render() {
+        console.log(`Demo1-render`);
+        return (
+            <div className="wrapper">
+                <h2 style={ {color: this.state.isRed ? `red` : `blue`} }>Color</h2>
+                <button onClick={this.changeColor}>changeColor</button>
+                <button onClick={this.deleteComp}>unmount</button>
+                <button onClick={this.force}>不改state，强制更新页面</button>
+            </div>
+        )
+    }
+
+    changeColor = () => {
+        let {isRed} = this.state
+        this.setState({isRed: !isRed})
+    }
+
+    deleteComp = () => {
+        ReactDOM.unmountComponentAtNode(document.getElementById(`app`))
+    }
+
+    force = () => {
+        this.forceUpdate()
+    }
+
+    //挂载完成后调用
+    componentDidMount() {
+        console.log(`Demo1-componentDidMount`);
+    }
+
+    //控制页面是否更新的 "阀门"
+    shouldComponentUpdate() {
+        console.log(`Demo1-shouldComponentUpdate`);
+        //必须返回布尔类型
+        return true
+    }
+
+    //组件将要更新时调用
+    componentWillUpdate() {
+        console.log(`Demo1-componentWillUpdate`);
+    }
+
+    //组件更新完毕时调用
+    componentDidUpdate() {
+        console.log(`Demo1-componentDidUpdate`);
+    }
+
+    //卸载前调用
+    componentWillUnmount = () => {
+        console.log(`Demo1-componentWillUnmount`);
+    }
+}
+
+ReactDOM.render(<Demo1/>, document.getElementById(`app`))
+```
+
+- 父组件的render触发子组件的 ```componentWillreceiveProps()``` 生命周期钩子
+
+```jsx
+class Parent extends React.Component {
+    state  = {isRed: true}
+
+    render() {
+        return (
+            <div className="wrapper">
+                <h2>Parent</h2>
+                <button onClick={this.changeColor}>changeColor</button>
+                <Children isRed={this.state.isRed}/>
+            </div>
+        )
+    }
+
+    changeColor = () => {
+        let {isRed} = this.state
+        this.setState({isRed: !isRed})
+    }
+
+}
+
+class Children extends React.Component {
+
+    componentWillReceiveProps(newProps) {
+        console.log(`children-componentWillReceiveProps`);
+        console.log(newProps);
+    }
+
+    render() {
+        return (
+            <div className="wrapper">
+                <h2 style={ {color: this.props.isRed ? `red` : `blue`} }>Children</h2>
+            </div>
+        )
+    }
+}
+
+ReactDOM.render(<Parent />, document.getElementById(`app`))
+```
+
+> 新版本的生命周期
+
+![新版本的生命周期](./note-img/React生命周期(新).png)
+
+在React 17.x版本中， 有三个生命周期钩子被加上了弃用警告，要使用要加上```UNSAFE_``` 前缀
+
+- componentWillMount --> ```UNSAFE_componentWillMount``` 下同
+- componentWillUpdate
+- componentWillReceiveProps
+
+注意：这里的```UNSAFE``` 和安全性无关，只是React官方预测到之后使用异步渲染这三个钩子可能会出现bug， 和这三个钩子的滥用
+
+增加了 ```getDerivedStateFromProps``` 和 ```getSnapshotBeforeUpdate```, 但是我们在开发中极少使用这两个钩子
+
+- getDerivedStateFromProps -翻译-> 得到一个派生的state从Props中
+
+这个钩子不是个给实例使用的，所以用的时候要加上 ```static```, 并且在是使用的时候返回一个**状态对象**(或者是null),它接收一个参数，就是组件传入的props，使得state中的值在人话时刻都取决于传入的props中的值
+
+```jsx
+class Demo extends React.Component {
+    state = {count: 1}
+    render() {
+        return (
+            <div className="wrapper">
+                <h2>{this.state.count}</h2>
+                <button onClick={this.increment}>add1</button>
+            </div>
+        )
+    }
+    increment = () => {
+        this.setState({count: this.state.count + 1})
+    }
+
+    static getDerivedStateFromProps(props) {
+        console.log(`getDerivedStateFromProps`);
+        //这里就会把props 放入state中，但是state就改变不了了
+        return props
+    }
+}
+
+ReactDOM.render(<Demo count={100} />, document.getElementById(`app`))
+```
+
+- getSnapshotBeforeUpdate(prevProps, prevState) snapshop --> ```快照``` 的意思, 此生命周期钩子的返回任何返回值都将作为参数传递给 ```componentDidUpdate```
+
+### DOM 的 diffing 算法
+
+diffing 算法的最小单位是 标签(节点)， 是深层次的对比，逐层对比
+
+#### React 和 Vue中 key 的原理和作用
+
+- 经典面试题：
+- - Vue和React中的key的作用
+- - 为什么key中的值不建议使用index
+
+> 虚拟dom中 key 的作用
+
+key是虚拟dom对象的表示，在更新显示时， key起着至关重要的作用
+
+![diff](./note-img/diff1.png)
+
+![diff](./note-img/diff2.png)
+
+> 使用index作为key值可能造成严重的效率问题
+
+例如：下面的例子，如果将添加的元素放入数组的第一位，那么整个数组的index和key值都会改变，从而导致整个数组都对重新渲染
+
+```jsx
+class Demo extends React.Component {
+    state = {
+        letters: [`a`, `b`, `c`]
+    }
+    render() {
+        return (
+            <div className="wrapper">
+                <h2 className="title">letters</h2>
+                <ul>
+                    {this.state.letters.map( (letter, index) => {
+                        return <li key={index}>{letter}</li>
+                    } )}
+                </ul>
+                <button onClick={this.addLetter}>addLetter</button>
+            </div>
+        )
+    }
+
+    addLetter = () => {
+        console.log(1);
+        this.setState({letters: [`d`, ...this.state.letters]})
+    }
+}
+
+ReactDOM.render(<Demo/>, document.getElementById(`app`))
+```
+
+
+
+
+
+
+
 
 
 
